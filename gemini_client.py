@@ -12,11 +12,25 @@ if not GOOGLE_API_KEY:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 def extract_locations_from_text(text: str) -> list[str]:
-    prompt = f"Extract all cities or location names mentioned in the following sentence:\n\n{text}\n\nGive output as a comma-separated list."
+    prompt = f"""
+You are a precise geographic‐entity extractor. 
+From the following text, identify *all* place names—including cities, towns, villages, states/provinces, countries, regions, landmarks, neighborhoods, etc.—and return them as a JSON array of strings. Do *not* include any extra words, explanations, or formatting.
 
+Text:
+\"\"\"
+{text}
+\"\"\"
+"""
     model = genai.GenerativeModel('gemini-1.5-flash')
     response = model.generate_content(prompt)
 
-    locations = response.text.strip().split(",")
+    # parse the JSON array the model returns
+    try:
+        locations = json.loads(response.text)
+    except ValueError:
+        # fallback to comma-split if it didn’t come back as valid JSON
+        locations = response.text.strip().split(",")
+
     return [loc.strip() for loc in locations if loc.strip()]
+
 

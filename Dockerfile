@@ -1,5 +1,8 @@
 FROM python:3.10-slim
 
+# Set Python to run unbuffered
+ENV PYTHONBUFFERED=1
+
 WORKDIR /app
 
 # Copy requirements first for better caching

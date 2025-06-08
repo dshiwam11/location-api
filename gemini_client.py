@@ -1,15 +1,19 @@
 import os
+import json
 import google.generativeai as genai
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Load environment variables from .env
-load_dotenv()
+# load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_API_KEY is not set in environment or .env")
-
-genai.configure(api_key=GOOGLE_API_KEY)
+def setup_genai():
+    try:
+        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        if not GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_API_KEY is not set in environment or .env")
+        genai.configure(api_key=GOOGLE_API_KEY)
+    except Exception as e:
+        raise ValueError(f"Error setting up Gemini API: {e}")
 
 def extract_locations_from_text(text: str) -> list[str]:
     prompt = f"""
@@ -28,7 +32,7 @@ Text:
     try:
         locations = json.loads(response.text)
     except ValueError:
-        # fallback to comma-split if it didn’t come back as valid JSON
+        # fallback to comma-split if it didn't come back as valid JSON
         locations = response.text.strip().split(",")
 
     return [loc.strip() for loc in locations if loc.strip()]

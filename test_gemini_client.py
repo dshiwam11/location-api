@@ -48,4 +48,13 @@ def test_extract_locations_from_text_no_locations():
         result = extract_locations_from_text("This is a test message with no locations.")
         
         assert result == []
-        assert len(result) == 0 
+        assert len(result) == 0
+
+def test_extract_locations_from_text_multiline_and_special_chars():
+    mock_response = MagicMock()
+    mock_response.text = '["New York", "São Paulo", "München"]'
+    multiline_text = "I have been to New York.\nAlso visited São Paulo & München! #travel"
+    with patch('gemini_client.genai.GenerativeModel') as mock_model:
+        mock_model.return_value.generate_content.return_value = mock_response
+        result = extract_locations_from_text(multiline_text)
+        assert result == ["New York", "São Paulo", "München"] 

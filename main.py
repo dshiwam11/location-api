@@ -1,64 +1,65 @@
-from fastapi import FastAPI, Security, HTTPException, Depends
-from fastapi.security.api_key import APIKeyHeader
-from models import LocationRequest, LocationResponse, Coordinates
-from gemini_client import extract_locations_from_text, setup_genai
-from geocoder import get_coordinates
 import os
-from dotenv import load_dotenv
 import logging
 
-def create_app() -> FastAPI:
-    load_dotenv()
-    # Setup Gemini API before app initialization
-    setup_genai()
+from fastapi import FastAPI, Security, HTTPException, Depends, Body
+from fastapi.security.api_key import APIKeyHeader
+from models import LocationResponse, Coordinates
+from gemini_client import extract_locations_from_text, setup_genai
+from geocoder import get_coordinates
+from dotenv import load_dotenv
 
-    # Configure logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+# Load .env variables early
+load_dotenv()
 
-    app = FastAPI()
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    API_KEY_NAME = "X-API-Key"
-    api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+# Init app
+app = FastAPI()
 
-    async def get_api_key(api_key_header: str = Security(api_key_header)):
-        if api_key_header == os.getenv("API_KEY"):
-            return api_key_header
-        raise HTTPException(
-            status_code=403, detail="Could not validate API key"
-        )
+# Initialize Gemini API
+setup_genai()
 
-    @app.post("/get-coordinates", response_model=LocationResponse)
-    async def get_location_coordinates(
-        request: LocationRequest,
-        api_key: str = Depends(get_api_key)
-    ):
-        try:
-            locations = extract_locations_from_text(request.text)
-            results = []
-            missing_locations = []
+# API Key Security
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
-            for location in locations:
-                coords = await get_coordinates(location)
-                if coords:
-                    results.append(Coordinates(location_name=location, latitude=coords[0], longitude=coords[1]))
-                else:
-                    missing_locations.append(location)
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header == os.getenv("API_KEY"):
+        return api_key_header
+    raise HTTPException(status_code=403, detail="Could not validate API key")
 
-            if missing_locations:
-                logger.info(f"Coordinates not found for locations: {missing_locations}")
-            logger.info(f"Returning coordinates for {len(results)} locations.")
-            return LocationResponse(coordinates=results)
-        except Exception as e:
-            logger.exception(f"Error in get_location_coordinates: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+# --- RAW TEXT ENDPOINT ---
+@app.post("/get-coordinates", response_model=LocationResponse)
+async def get_location_coordinates(
+    text: str = Body(..., media_type="text/plain"),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info("Received raw text body")
+    try:
+        locations = extract_locations_from_text(text)
+        results = []
+        missing = []
+        for loc in locations:
+            coords = await get_coordinates(loc)
+            if coords:
+                results.append(Coordinates(location_name=loc, latitude=coords[0], longitude=coords[1]))
+            else:
+                missing.append(loc)
 
-    @app.get("/")
-    def read_root():
-        return {
-            "message": "API is up and running! Visit /docs for Swagger UI or use /get-coordinates endpoint."
-        }
+        if missing:
+            logger.info(f"Could not find coords for: {missing}")
+        return LocationResponse(coordinates=results)
 
-    return app
+    except Exception:
+        logger.exception("Error in get_location_coordinates")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-app = create_app()
+@app.get("/")
+def read_root():
+    return {"message": "API is up. Use POST /get-coordinates as text/plain."}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8080)))

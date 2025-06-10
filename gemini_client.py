@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import google.generativeai as genai
 # from dotenv import load_dotenv
 
@@ -27,14 +28,26 @@ Text:
 """
     model = genai.GenerativeModel('gemini-1.5-flash')
     response = model.generate_content(prompt)
+    content = response.text.strip()
 
-    # parse the JSON array the model returns
+    # 1) Find the first '[' and last ']' so we only grab the JSON array
+    start = content.find('[')
+    end = content.rfind(']')
+    if start != -1 and end != -1 and end > start:
+        json_part = content[start:end+1]
+    else:
+        json_part = content
+
+    # 2) Remove any trailing commas before the closing bracket
+    json_part = re.sub(r",\s*]", "]", json_part, flags=re.S)
+
+    # 3) Try to parse clean JSON
     try:
-        locations = json.loads(response.text)
-    except ValueError:
-        # fallback to comma-split if it didn't come back as valid JSON
-        locations = response.text.strip().split(",")
+        locations = json.loads(json_part)
+    except json.JSONDecodeError:
+        # Fallback: strip brackets/quotes and comma-split
+        cleaned = json_part.strip("[] \n")
+        locations = [loc.strip(" \"'") for loc in cleaned.split(",") if loc.strip()]
 
-    return [loc.strip() for loc in locations if loc.strip()]
-
-
+    # 4) Return a real list[str], not a print()
+    return [loc for loc in locations if isinstance(loc, str) and loc.strip()]

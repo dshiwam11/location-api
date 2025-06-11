@@ -3,7 +3,7 @@ import logging
 
 from fastapi import FastAPI, Security, HTTPException, Depends, Body
 from fastapi.security.api_key import APIKeyHeader
-from models import LocationResponse, Coordinates
+from models import LocationResponse, Place
 from gemini_client import extract_locations_from_text, setup_genai
 from geocoder import get_coordinates
 from dotenv import load_dotenv
@@ -42,15 +42,20 @@ async def get_location_coordinates(
         results = []
         missing = []
         for loc in locations:
-            coords = await get_coordinates(loc)
+            coords = await get_coordinates(loc["name"])
             if coords:
-                results.append(Coordinates(location_name=loc, latitude=coords[0], longitude=coords[1]))
+                results.append(Place(
+                    name=loc["name"],
+                    type=loc["type"],
+                    latitude=coords[0],
+                    longitude=coords[1]
+                ))
             else:
-                missing.append(loc)
+                missing.append(loc["name"])
 
         if missing:
             logger.info(f"Could not find coords for: {missing}")
-        return LocationResponse(coordinates=results)
+        return LocationResponse(places=results)
 
     except Exception:
         logger.exception("Error in get_location_coordinates")

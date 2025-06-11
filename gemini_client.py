@@ -2,6 +2,7 @@ import os
 import json
 import re
 import google.generativeai as genai
+from typing import List, Dict, Tuple
 # from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -16,10 +17,14 @@ def setup_genai():
     except Exception as e:
         raise ValueError(f"Error setting up Gemini API: {e}")
 
-def extract_locations_from_text(text: str) -> list[str]:
+def extract_locations_from_text(text: str) -> List[Dict[str, str]]:
     prompt = f"""
 You are a precise geographic‐entity extractor. 
-From the following text, identify *all* place names—including cities, towns, villages, states/provinces, countries, regions, landmarks, neighborhoods, etc.—and return them as a JSON array of strings. Do *not* include any extra words, explanations, or formatting.
+From the following text, identify *all* place names—including cities, towns, villages, states/provinces, countries, regions, landmarks, neighborhoods, etc.—and return them as a JSON array of objects. Each object should have two fields:
+1. "name": the place name
+2. "type": one of these categories: "country", "city", "state/province", "region", "landmark", "neighborhood", "town", "village"
+
+Do *not* include any extra words, explanations, or formatting.
 
 Text:
 \"\"\"
@@ -45,9 +50,8 @@ Text:
     try:
         locations = json.loads(json_part)
     except json.JSONDecodeError:
-        # Fallback: strip brackets/quotes and comma-split
-        cleaned = json_part.strip("[] \n")
-        locations = [loc.strip(" \"'") for loc in cleaned.split(",") if loc.strip()]
+        # Fallback: return empty list if JSON parsing fails
+        return []
 
-    # 4) Return a real list[str], not a print()
-    return [loc for loc in locations if isinstance(loc, str) and loc.strip()]
+    # 4) Return a list of location dictionaries
+    return [loc for loc in locations if isinstance(loc, dict) and "name" in loc and "type" in loc]

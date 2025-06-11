@@ -5,3 +5,5 @@ httpx
 pydantic
 google-generativeai==0.8.5
 python-dotenv
+pytest
+pytest-asyncio

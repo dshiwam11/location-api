@@ -1,0 +1,17 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/location-api', '.']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/location-api']
+
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: 'gcloud'
+  args: [
+    'run', 'deploy', 'location-api',
+    '--image', 'gcr.io/$PROJECT_ID/location-api',
+    '--region', 'asia-southeast1',  # choose closest region like Singapore
+    '--platform', 'managed',
+    '--port', '8080',
+    '--allow-unauthenticated'
+  ]

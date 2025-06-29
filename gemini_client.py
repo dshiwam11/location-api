@@ -23,6 +23,7 @@ You are a precise geographic‐entity extractor.
 From the following text, identify *all* place names—including cities, towns, villages, states/provinces, countries, regions, landmarks, neighborhoods, etc.—and return them as a JSON array of objects. Each object should have two fields:
 1. "name": the place name
 2. "type": one of these categories: "country", "city", "state/province", "region", "landmark", "neighborhood", "town", "village"
+3. If there is a potential duplication of locations, match with the other locations and its regions by proximity
 
 Do *not* include any extra words, explanations, or formatting.
 
